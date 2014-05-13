@@ -1,0 +1,16 @@
+{
+  "name": "ripple-neo4j",
+  "version": "0.0.0",
+  "description": "find cheapest path ",
+  "main": "index.js",
+  "dependencies": {
+    "express": "~4.2.0",
+    "q": "~1.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "lazaruslarue",
+  "license": "ISC"
+}
