@@ -1,3 +1,3 @@
-services.service('Api', function() {
-  // body...
+services.service('Api', function($http) {
+  baseUrl = "";
 });
