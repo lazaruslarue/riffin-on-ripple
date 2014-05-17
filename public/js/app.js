@@ -2,7 +2,7 @@ angular.module('app', [
   'ui.router',
   'states',
   'app.services',
-  'app.controllers'
+  'app.controllers',
 ]);
 
 var services    = angular.module('app.services',[]);

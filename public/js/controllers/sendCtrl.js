@@ -1,1 +1,3 @@
-sendCtrl.js
+controllers.controller('SendCtrl',function(Api) {
+  // body...
+});
