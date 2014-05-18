@@ -1,6 +1,6 @@
 angular.module('states',[
   'state.send',
-  'state.receive'
+  'state.request'
 ])
 .config(function ($stateProvider, $urlRouterProvider) {
   $stateProvider.state("/home",{
@@ -11,12 +11,12 @@ angular.module('states',[
   $urlRouterProvider.otherwise('/home');
 });
 
-// receive.js
-angular.module('state.receive',[]).config( function ($stateProvider) {
-  $stateProvider.state("receive", {
-    url: "/receive",
-    controller: "RecvCtrl",
-    templateUrl: "../templates/receive.html",
+// request.js
+angular.module('state.request',[]).config( function ($stateProvider) {
+  $stateProvider.state("request", {
+    url: "/request",
+    controller: "RequestCtrl",
+    templateUrl: "../templates/request.html",
   });
 });
 

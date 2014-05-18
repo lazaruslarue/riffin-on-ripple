@@ -1,3 +1,0 @@
-controllers.controller('RecvCtrl',function(Api) {
-  // body...
-});
