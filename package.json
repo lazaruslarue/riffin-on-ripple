@@ -6,13 +6,15 @@
   "dependencies": {
     "express": "~4.2.0",
     "q": "~1.0.1",
-    "node-neo4j": "^2.0.0-RC6"
+    "node-neo4j": "^2.0.0-RC6",
+    "bower": "0.6.x"
   },
    "engines":  {
     "node": "0.10.x"
   },
   "devDependencies": {},
   "scripts": {
+    "postinstall": "./node_modules/bower/bin/bower install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "lazaruslarue",
