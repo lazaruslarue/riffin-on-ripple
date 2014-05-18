@@ -13,6 +13,19 @@
     MERGE (euro)<-[:BID {price: 0.007}]-(E:MAKER)-[:ASK]->(yen)
     MERGE (reciever:RCVR)-[:ACCEPTS]->(yen)
 
+### use API to find nodes
+
+curl -X POST -H "Content-Type: application/json" -d '{ "query" : "MATCH p=shortestPath((x:CURRENCY {type: {origin}})--(y:CURRENCY {type: {target}})) RETURN p","params" : { "origin" : "BTC",    "target" : "USD" }}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/cypher
+
+{ \
+  "to" : "http://localhost:7474/db/data/node/155", \
+  "cost_property" : "cost", \
+  "relationships" : { \
+    "type" : "to", \
+    "direction" : "out" \
+  }, \
+  "algorithm" : "dijkstra" \
+}
 
 ### find a path
 
@@ -34,4 +47,3 @@ RETURN p
 
 ### verify path has enough money to fully execute the transaction
 
-ls
