@@ -1,5 +1,5 @@
 var neo4j    = require('node-neo4j');
-var Q        = require('Q');
+var Q        = require('q');
 var http     = require('http');
 var graphURL = require('../config/db.js').graphURL;
 var db       = require('../config/db.js').db;
@@ -10,9 +10,9 @@ module.exports = {
     // console.log(req.params); { source: 'foo', target: 'bar' }
 
     getBidOrders(req.params)
-    .then(function(data) {
-      res.send(data);
-    });
+    .then(nextTransactionStep)
+    .then(res.send)
+    .fail(res.send);
 
     // get correct db Endpoint from db
     // post Data to Correct Endpoint
@@ -32,7 +32,6 @@ module.exports = {
 //MATCH (n:ORDER:BID {bid_with:"USD", wtb: "BTC"}) RETURN n ORDER BY n.bid_price
 var getBidOrders = function(params){
   var defer = Q.defer();
-
   var opts = {
     query : "MATCH (n:ORDER:BID {bid_with:{props}.bid_with, buy: {props}.buy})" +
       " RETURN n ORDER BY n.bid_price DESC LIMIT 25",
@@ -47,8 +46,25 @@ var getBidOrders = function(params){
   db.cypherQuery(opts.query, opts.params, function(err, result){
     defer.resolve(result.data);
   });
+  return defer.promise;
+};
 
+var nextTransactionStep = function(params) {
+  var defer = Q.defer();
+  console.log(params[0]._id);
+  var opts = {
+    query : "MATCH step=(o)-[:WTB]->(next:CURRENCY)<-[:WTS]-(o2:ORDER:BID)" +
+      " WHERE id(o)={props}._id" +
+      " RETURN next, o2 ",
+    params : {
+      props : params[0]
+    }
+  };
 
+  db.cypherQuery(opts.query, opts.params, function(err, result){
+    console.log(arguments);
+    defer.resolve(result.data);
+  });
   return defer.promise;
 };
 

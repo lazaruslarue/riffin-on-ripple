@@ -11,9 +11,9 @@ module.exports = {
     });
   },
   fetchOrders: function(req, res){
-    db.
 
-    res.send(defer.promise);
+
+    res.send(200);
   },
 
 };
