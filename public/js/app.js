@@ -1,5 +1,6 @@
 angular.module('app', [
   'ui.router',
+  'ui.bootstrap',
   'states',
   'app.services',
   'app.controllers',

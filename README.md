@@ -5,6 +5,10 @@
 
 ### Create a graph of relationships
 
+match (o)<-[r1:BID_WITH]-(order)-[r2:WTB]->(o) RETURN r1, r2, order
+match (o)<-[r1:ASK_FOR]-(order)-[r2:WTS]->(o) RETURN r1, r2, order
+
+currency nodes: --> 450 USD  451 JPY 452 EUR 453 BTC
 
 small sample:
 MERGE (eur)<-[:BID_WITH]-(:ORDER:BID {total: 0.05091, size: 0.05091, bid_price: 252.22000, bid_with: "EUR", buy: "BTC"})-[:WTB]->(btc)
@@ -25,28 +29,138 @@ MERGE (request)-[:ACCEPTS]->(jpy)
 
 curl -X POST -H "Content-Type: application/json" -d '{ "query" : "MATCH p=shortestPath((x:CURRENCY {type: {origin}})--(y:CURRENCY {type: {target}})) RETURN p","params" : { "origin" : "BTC",    "target" : "USD" }}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/cypher
 
-{ \
-  "to" : "http://localhost:7474/db/data/node/155", \
-  "cost_property" : "cost", \
-  "relationships" : { \
-    "type" : "to", \
-    "direction" : "out" \
-  }, \
-  "algorithm" : "dijkstra" \
-}
 
 ### find a path
 
 [query-match](http://docs.neo4j.org/chunked/2.0.3/query-match.html)
 
+****
+  MATCH path=(c:CURRENCY {name: "JPY"})<-[:WTB]-(os:ORDER)-[*]-(of:ORDER)-[:WTS]->(c2:CURRENCY {name: "EUR"} ) return path LIMIT 10
+****
+match path=shortestPath((c:CURRENCY {name: "JPY"})<-[:WTB]-(os:ORDER)-[*]-(of:ORDER)-[:WTS]->(c2:CURRENCY {name: "EUR"}) ) return path LIMIT 10
+"Requires a pattern containing a single relationship"
 
-MATCH p=shortestPath((n1:SEND)-[*..6]-(n2:RCVR)) return p;
+
+### Lets add properties to our WTB, WTS, BID_WITH, ASK_FOR relations that allow us to keep track of our costs.
+
+** When we find routes, we will optimize for small ask_price when sending && optimize for small bid_price when requesting **
+
+MATCH (a:CURRENCY)<-[af:ASK_FOR]-(ask:ASK)-[sr:WTS]-(s:CURRENCY)
+WITH sr AS sell, ask, af
+SET sell.ask_price=ask.ask_price, af.ask_price=0, af.sellrate=0
+return ask, sell, af
+
+
+MATCH (w:CURRENCY)<-[bw:BID_WITH]-(bid:BID)-[br:WTB]-(b:CURRENCY)
+WITH br AS buy, bw, bid
+SET bw.bidrate=0, bw.bid_price=0, buy.bidrate=1/bid.bid_price, buy.bid_price=bid.bid_price
+return buy, bid
+
+
+### Now, let's API:
 
 http://docs.neo4j.org/chunked/stable/rest-api-graph-algos.html#rest-api-execute-a-dijkstra-algorithm-with-weights-on-relationships
 
-MATCH (dol:CURRENCY { type:"USD" }),(btc:CURRENCY { type:"BTC" }),
-  p = allShortestPaths((dol)-[*]-(btc))
-RETURN p
+We did this with the simple model:
+  MATCH p=shortestPath((n1:SEND)-[*..6]-(n2:RCVR)) return p;
+
+
+  MATCH (dol:CURRENCY { type:"USD" }),(btc:CURRENCY { type:"BTC" }),
+    p = allShortestPaths((dol)-[*]-(btc))
+  RETURN p
+
+
+
+
+node 450 USD  451 JPY 452 EUR 453 BTC
+
+
+#### REQUEST EUR from DOL (one type of directions... )
+
+curl -X POST -H "Content-Type: application/json" -d '{  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/451",  "cost_property" : "bid_price",  "relationships" : [    {      "type" : "WTB",      "direction" : "in"    }, {      "type" : "BID_WITH",      "direction" : "all"    }  ],  "algorithm" : "dijkstra"}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/453/path
+DATA
+{
+  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/451",
+  "cost_property" : "bid_price",
+  "relationships" : [
+    {
+      "type" : "WTB",
+      "direction" : "all"
+    }, {
+      "type" : "BID_WITH",
+      "direction" : "all"
+    }
+  ],
+  "algorithm" : "dijkstra"
+}
+RESPONSE
+{
+  "weight" : 181.20951,
+  "start" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+  "nodes" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/612",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/452",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/470",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/450",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/459",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+  ],
+  "length" : 6,
+  "relationships" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/934",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/935",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/651",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/650",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/628",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/629"
+  ],
+  "end" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+}
+
+
+#### SEND DOL to EUR
+
+curl -X POST -H "Content-Type: application/json" -d '{  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/451",  "cost_property" : "ask_price",  "relationships" : [    {      "type" : "WTS",      "direction" : "all"    }, {      "type" : "ASK_FOR",      "direction" : "all"    }  ],  "algorithm" : "dijkstra"}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/453/path
+
+{
+  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/451",
+  "cost_property" : "ask_price",
+  "relationships" : [
+    {
+      "type" : "WTS",
+      "direction" : "all"
+    }, {
+      "type" : "ASK_FOR",
+      "direction" : "all"
+    }
+  ],
+  "algorithm" : "dijkstra"
+}
+RESPONSE
+{
+  "weight" : 340.27642,
+  "start" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+  "nodes" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/613",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/452",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/544",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/450",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/491",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+  ],
+  "length" : 6,
+  "relationships" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/936",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/937",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/799",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/798",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/692",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/693"
+  ],
+  "end" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+}
 
 
 
@@ -112,6 +226,27 @@ curl -X POST -H "Content-Type: application/json" -d '{  "to" : "http://test:MhTh
 }
 
 
+node 450 USD  451 JPY 452 EUR 453 BTC
+
+curl -X POST -H "Content-Type: application/json" -d '{{{ your data here}}}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/34/path
+
+{
+  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/44",
+  "cost_property" : "price",
+  "relationships" : [
+    {
+      "type" : "WTB",
+      "direction" : "IN"
+    }, {
+      "type" : "BID_WITH",
+      "direction" : "OUT"
+    }
+  ],
+  "algorithm" : "dijkstra"
+}
+
+
+
 
 
 
@@ -161,49 +296,12 @@ rels:
 
 
 
-===
- [ {
-    "direction" : "all",
-    "type" : "knows"
-  }, {
-    "direction" : "all",
-    "type" : "loves"
-  } ]
+
 ====
 
 START n=node(34), m=node(36)
 MATCH p=shortestPath(n-[:ASK*..1000]->m)
 RETURN p,length(p);
-
-
-
-====
-
-MATCH (tobias { name: 'Tobias' }),(others)
-WHERE others.name IN ['Andres', 'Peter'] AND (tobias)<--(others)
-RETURN others
-
-
-MATCH (n)
-WHERE (n)-[:KNOWS]-({ name:'Tobias' })
-RETURN n
-
-MATCH (n)-[r]->()
-WHERE n.name='Andres' AND type(r)=~ 'K.*'
-RETURN r
-
-
-match (origin:CURRENCY {name:"USD"}), (target:CURRENCY {name:"BTC"}), (origin)<-[ask:ASK]-(a:MAKER_ORDER), (target)<-[bid:BID]-(b:MAKER_ORDER)
-
-return origin, target, ask, a, bid, b
-
-
-
-
-match step=(sell:CURRENCY)<-[bid:BID]-(order:MAKER_ORDER)-[ask:ASK]->(buy:CURRENCY)
-WHERE sell.type in ['BTC']
-
-RETURN rels(step)
 
 
 
@@ -216,122 +314,16 @@ WHERE ALL(x IN gs WHERE x IN GroupGs)
 RETURN cs -->
 
 
-MATCH p=(n:CURRENCY)<-[bid:BID]-(order:MAKER_ORDER)-[ask:ASK]->(m:CURRENCY),(b:CURRENCY {type: "YEN"}), (c:CURRENCY {type: "USD"}), bunch=allShortestPaths(c<-[:ASK]-()-[*]-()-[:BID]->b)
+<!-- MATCH p=(n:CURRENCY)<-[bid:BID]-(order:MAKER_ORDER)-[ask:ASK]->(m:CURRENCY),(b:CURRENCY {type: "YEN"}), (c:CURRENCY {type: "USD"}), bunch=allShortestPaths(c<-[:ASK]-()-[*]-()-[:BID]->b)
 WHERE (sender)<-[:HAS]-(b), (c)<-[a:ACCEPTS]-(getter:RCVR)
 WITH COLLECT(DISTINCT order) AS orders, FILTER(x IN NODES(p) WHERE NOT x:G) AS cs,COLLECT(c) AS gs
 WHERE ALL(x IN gs WHERE x IN GroupGs)
 RETURN cs
 
-
-
-
 MATCH p=(n:CURRENCY)<-[bid:BID]-(order:MAKER_ORDER)-[ask:ASK]->(m:CURRENCY),(b:CURRENCY {type: "YEN"}), (c:CURRENCY {type: "USD"})
 
 RETURN p, n, bid, order, ask, m, b, c
-
-CREATE (usd:CURRENCY {name: "USD"}), (jpy:CURRENCY {name: "JPY"}), (eur:CURRENCY {name: "EUR"}), (btc:CURRENCY {name: "BTC"})
-
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1000.00000, size: 1000.00000, bid_price: 0.01000})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1100.00000, size: 100.00000,   bid_price: 0.01000})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1167.59800, size: 67.598920,   bid_price: 0.00978})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1368.14400, size: 200.54570,   bid_price: 0.00978})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1577.87000, size: 209.72550,   bid_price: 0.00968})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy:"JPY", total: 1815.30600, size: 237.43610,   bid_price: 0.00961})-[:WTB]->(jpy)
-
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 20.00000 ,   size: 20.00000  , bid_price: 1.35203})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 157.05990,   size: 137.05990 , bid_price: 1.35000})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 160.61660,   size: 3.55670 ,   bid_price: 1.33170})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 237.27130,   size: 76.65464  , bid_price: 1.30030})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 238.96540,   size: 1.69413 ,   bid_price: 1.30020})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 248.96540,   size: 10.00000  , bid_price: 1.30010})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 363.87640,   size: 114.91100 , bid_price: 1.30000})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 1093.87600, size: 730.00000 , bid_price: 1.30000})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 1093.97100, size: 0.09522 ,   bid_price: 1.26030})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 1496.56800, size: 402.59700 , bid_price: 1.25000})-[:WTB]->(eur)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID { bid_with:"USD", buy: "EUR", total: 1501.09400, size: 4.52592 ,   bid_price: 1.20000})-[:WTB]->(eur)
-
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:0.58307, size: 0.58307, bid_price: 434.41350, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:0.58547, size: 0.00240, bid_price: 425.34850, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:0.59679, size: 0.01132, bid_price: 425.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:1.40351, size: 0.80672, bid_price: 420.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:1.40361, size: 0.00010, bid_price: 420.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:1.65245, size: 0.24883, bid_price: 415.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:1.65519, size: 0.00274, bid_price: 408.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:1.77957, size: 0.12437, bid_price: 402.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:2.06008, size: 0.28050, bid_price: 400.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.06008, size: 2.00000, bid_price: 385.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.06385, size: 0.00376, bid_price: 378.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.23766, size: 0.17380, bid_price: 356.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.24284, size: 0.00517, bid_price: 348.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.24340, size: 0.00056, bid_price: 320.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.24743, size: 0.00403, bid_price: 320.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:4.25453, size: 0.00709, bid_price: 319.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:7.30084, size: 3.04631, bid_price: 303.16000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:7.30086, size: 0.00001, bid_price: 300.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:9.30086, size: 2.00000, bid_price: 300.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-MERGE (btc)<-[:BID_WITH]-(:ORDER:BID {total:9.30419, size: 0.00333, bid_price: 300.00000, bid_with: "BTC", buy: "USD"})-[:WTB]->(usd)
-
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.02642, size: 102.56450, total: 102.56450, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.03196, size: 66.93537, total:  169.49980, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.03196, size: 113.20850, total: 282.70840, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.03229, size: 77.40000, total:  360.10840, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.03312, size: 94.10223, total:  454.21060, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 0.03395, size: 103.27250, total: 557.48320, ask_for:"USD", sell: "JPY"})-[:WTS]->(jpy)
-
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.37000, size: 23.98949, total: 23.98949, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.38697, size: 19.59471, total: 43.58421, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.39999, size: 20.00000, total: 63.58421, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.40999, size: 26.99345, total: 90.57766, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.60000, size: 6.99400, total:  97.57166, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 1.65000, size: 8.72145, total: 106.29310, ask_for: "USD", sell: "EUR" })-[:WTS]->(eur)
-
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 442.67510, size: 0.00235, total: 0.00235, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 445.50270, size: 0.58361, total: 0.58596, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 495.00000, size: 0.34202, total: 0.92799, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 500.00000, size: 0.20000, total: 1.12799, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 500.84000, size: 0.99800, total: 2.12599, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 515.00000, size: 0.19417, total: 2.32016, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 524.30000, size: 0.50000, total: 2.82016, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 530.00000, size: 0.18867, total: 3.00883, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 531.01000, size: 0.49628, total: 3.50512, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 535.00000, size: 0.18691, total: 3.69203, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 545.00000, size: 0.18348, total: 3.87551, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 550.00000, size: 1.00000, total: 4.87551, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 555.00000, size: 0.18018, total: 5.05569, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 565.00000, size: 0.17699, total: 5.23268, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 575.00000, size: 0.17391, total: 5.40659, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 578.00000, size: 0.50000, total: 5.90659, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 593.33000, size: 0.44204, total: 6.34864, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 599.99990, size: 0.00166, total: 6.35030, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 600.00000, size: 1.00000, total: 7.35030, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-MERGE (usd)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 620.37000, size: 1.00000, total: 8.35030, ask_for:"USD", sell: "BTC"})-[:WTS]->(btc)
-
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 338.88000, size: 0.27399, total: 0.27399, ask_for: "EUR" , sell: "BTC"})-[:WTS]->(btc)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 368.88000, size: 0.10000, total: 0.37399, ask_for: "EUR" , sell: "BTC"})-[:WTS]->(btc)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 400.00000, size: 0.01999, total: 0.39399, ask_for: "EUR" , sell: "BTC"})-[:WTS]->(btc)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 500.00000, size: 0.03779, total: 0.43179, ask_for: "EUR" , sell: "BTC"})-[:WTS]->(btc)
-MERGE (eur)<-[:ASK_FOR]-(:ORDER:ASK {ask_price: 598.00000, size: 0.50000, total: 0.93179, ask_for: "EUR" , sell: "BTC"})-[:WTS]->(btc)
-
-
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1000.00000, size: 1000.00000, bid_price: 0.01000, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1100.00000, size: 100.00000, bid_price:  0.01000, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1167.59800, size: 67.59892, bid_price:   0.00978, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1368.14400, size: 200.54570, bid_price:  0.00978, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1577.87000, size: 209.72550, bid_price:  0.00968, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-MERGE (usd)<-[:BID_WITH]-(:ORDER:BID {total: 1815.30600, size: 237.43610, bid_price:  0.00961, bid_with:"USD", buy:"JPY"})-[:WTB]->(jpy)
-
-
-
-
-
-match (o)<-[r1:BID_WITH]-(order)-[r2:WTB]->(o) delete r1, r2, order
-
-
-
-
-
-
-
+ -->
 =====================
 
 
@@ -353,3 +345,32 @@ I'm find with a sub-optimal solution. But I would really like to avoid making mo
   [1]: http://docs.neo4j.org/chunked/stable/rest-api-cypher.html
   [2]: http://api.neo4j.org/1.6.1/org/neo4j/graphalgo/CostEvaluator.html
   [3]: http://docs.neo4j.org/chunked/stable/rest-api-graph-algos.html
+
+
+
+============
+
+curl -X POST -H "Content-Type: application/json" -d '{  "to" : "http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/451",  "cost_property" : "bid_price",  "relationships" : [    {      "type" : "WTB",      "direction" : "in"    }, {      "type" : "BID_WITH",      "direction" : "out"    }  ],  "algorithm" : "dijkstra"}' http://test:MhThACRdV1pnNGX9ZFl3@test.sb02.stations.graphenedb.com:24789/db/data/node/453/path
+{
+  "weight" : 210.65259999999998,
+  "start" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+  "nodes" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/453",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/531",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/452",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/470",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/450",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/568",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+  ],
+  "length" : 6,
+  "relationships" : [
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/773",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/772",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/651",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/650",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/847",
+    "http://test.sb02.stations.graphenedb.com:24789/db/data/relationship/846"
+  ],
+  "end" : "http://test.sb02.stations.graphenedb.com:24789/db/data/node/451"
+}

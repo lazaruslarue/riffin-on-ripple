@@ -12,5 +12,6 @@ app.use(express.static(__dirname + '/../public'));
 require('./routes/appRoutes.js')(app);
 require('./routes/tradeRoutes.js')(app);
 require('./routes/currencyRoutes.js')(app);
+require('./routes/pathRoutes.js')(app);
 
 module.exports = app;
