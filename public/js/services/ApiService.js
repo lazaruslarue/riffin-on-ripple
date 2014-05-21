@@ -21,9 +21,10 @@ services.service('Api', function($http, $q) {
       var defer = $q.defer();
       $http({
         method: 'GET',
-        url: '/send/'+sourceCurrency._id+'/to/'+targetCurrency._id
+        url: '/send/'+sourceCurrency+'/to/'+targetCurrency
       })
       .success(function(data, status) {
+        console.log(data);
         defer.resolve(data);
       })
       .error(function(data, status){
@@ -36,7 +37,7 @@ services.service('Api', function($http, $q) {
       var defer = $q.defer();
       $http({
         method: 'GET',
-        url: '/request/'+sourceCurrency._id+'/from/'+targetCurrency._id
+        url: '/request/'+sourceCurrency+'/from/'+targetCurrency
       })
       .success(function(data, status) {
         defer.resolve(data);
@@ -44,6 +45,41 @@ services.service('Api', function($http, $q) {
       .error(function(data, status){
         alert('there was an error in ApiService.requestMoney with these args: ', arguments);
         console.log(arguments);
+        defer.reject(data);
+      });
+      return defer.promise;
+    },
+
+    fetchNode: function(node){
+      var defer = $q.defer();
+      $http({
+        method: 'GET',
+        url: '/node/' + node
+      })
+      .success(function(data, status) {
+        defer.resolve(data);
+      })
+      .error(function(data, status){
+        alert('there was an error in ApiService.fetchNode with these args: ', arguments);
+        console.log(arguments);
+        defer.reject(data);
+      });
+      return defer.promise;
+    },
+
+    fetchRelationship: function(node){
+      var defer = $q.defer();
+      $http({
+        method: 'GET',
+        url: '/relation/' + node
+      })
+      .success(function(data, status) {
+        defer.resolve(data);
+      })
+      .error(function(data, status){
+        alert('there was an error in ApiService.fetchRelationship with these args: ', arguments);
+        console.log(arguments);
+        defer.reject(data);
       });
       return defer.promise;
     },

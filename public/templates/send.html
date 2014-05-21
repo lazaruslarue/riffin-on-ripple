@@ -5,7 +5,11 @@
     <span class="sr-only">Split button!</span>
   </button>
   <ul class="dropdown-menu" role="menu">
-    <li ng-repeat="currency in currencyOptions"><a href="#">{{currency.name}}</a></li>
+    <li ng-repeat="currency in currencyOptions">
+      <div ng-click="setSource(currency)">
+        {{currency.name}}
+      </div>
+    </li>
   </ul>
 </div>
 
@@ -18,13 +22,15 @@
   </button>
   <ul class="dropdown-menu" role="menu">
     <li ng-repeat="currency in currencyOptions">
-      <a href="#">{{currency.name}}</a>
+    <div ng-click="setTarget(currency)">
+      {{currency.name}}
+    </div>
     </li>
   </ul>
 </div>
 
 <div class="btn-group" dropdown>
-  <button type="button" class="btn btn-lg btn-success" ng-click="sendMoney()">Find exchange path</button>
+  <button type="button" class="btn btn-lg btn-success" ui-sref="send.route({source: source._id, target: target._id})">Find exchange path</button>
 </div>
 
 {{orders}}

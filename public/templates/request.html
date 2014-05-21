@@ -1,1 +1,38 @@
-receive.html
+<div class="btn-group" dropdown>
+  <button type="button" class="btn btn-lg btn-primary">Your currency</button>
+  <button type="button" class="btn btn-lg btn-primary dropdown-toggle">
+    <span class="caret"></span>
+    <span class="sr-only">Split button!</span>
+  </button>
+  <ul class="dropdown-menu" role="menu">
+    <li ng-repeat="currency in currencyOptions">
+      <div ng-click="setSource(currency)">
+        {{currency.name}}
+      </div>
+    </li>
+  </ul>
+</div>
+
+
+<div class="btn-group" dropdown>
+  <button type="button" class="btn btn-lg btn-primary">Target currency</button>
+  <button type="button" class="btn btn-lg btn-primary dropdown-toggle">
+    <span class="caret"></span>
+    <span class="sr-only">Split button!</span>
+  </button>
+  <ul class="dropdown-menu" role="menu">
+    <li ng-repeat="currency in currencyOptions">
+    <div ng-click="setTarget(currency)">
+      {{currency.name}}
+    </div>
+    </li>
+  </ul>
+</div>
+
+<div class="btn-group" dropdown>
+  <button type="button" class="btn btn-lg btn-success" ui-sref="request.route({source: source._id, target: target._id})">Find exchange path</button>
+</div>
+
+{{orders}}
+
+<ui-view></ui-view>

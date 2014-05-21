@@ -23,7 +23,26 @@ module.exports = {
       res.send(data);
     });
   },
+
+  //TODO: move this to separate controller
+  fetchNode: function(req, res) {
+    var ele = req.body;
+    db.readNode(ele, function(err, node){
+      if(err) throw err;
+      res.send(node);
+    });
+  },
+
+  fetchRelation: function(req, res) {
+    var ele = req.body;
+    db.readRelationship(ele, function(err, node){
+      if(err) throw err;
+      res.send(node);
+    });
+  },
+
 };
+
 
 var getPathBetween = function(source, target, pathway) {
   var defer = Q.defer();
@@ -68,3 +87,6 @@ var getPathBetween = function(source, target, pathway) {
 
   return defer.promise;
 };
+
+
+

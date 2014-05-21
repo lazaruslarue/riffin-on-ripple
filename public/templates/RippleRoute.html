@@ -1,0 +1,28 @@
+{{route}}
+
+<h4>
+  cost: {{route.weight}}
+</h4>
+<h4>
+  length: {{route.length}}
+</h4>
+<h4>
+  Source currency: {{route.start}}
+</h4>
+<h4>
+  Target currency: {{route.end}}
+</h4>
+<h4>
+  Path:
+</h4>
+<div ng-repeat="node in route.nodes">
+  <li>{{node}}</li>
+</div>
+<h4>
+  Relationships:
+</h4>
+<div ng-repeat="relationship in route.relationships">
+  <li>{{relationship}}</li>
+  <!-- <ripple-relation relationUrl="relationship"></ripple-relation> -->
+</div>
+
